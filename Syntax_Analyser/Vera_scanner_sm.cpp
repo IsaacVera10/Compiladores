@@ -81,13 +81,13 @@ public:
     friend ostream& operator<<(std::ostream& os, const Token& token);
 private:
     string input;
-    int current;
+    int first=0, current=0;
     char nextChar();
+    void rollBack();
     void startLexema();
     string getLexema();
     bool isReservedWord(const string& lexema);
-
-
+    void incrStartLexema();
 };
 
 Scanner::Scanner(const string& input): input(input), current(0) { }
@@ -101,23 +101,31 @@ char Scanner::nextChar() {
     }
     return c;
 }
+void Scanner::rollBack() { // retract
+    if (input[current] != '\0')
+        current--;
+}
 
 void Scanner::startLexema() {
-    current--;
+    first = current-1;
 }
 
 string Scanner::getLexema() {
-    return string(1, input[current - 1]);
+    return input.substr(first,current-first);
 }
 
 bool Scanner::isReservedWord(const string& lexema) {
     return reservedWords.find(lexema) != reservedWords.end();
 }
 
+void Scanner::incrStartLexema() {
+    first++;
+}
+
 Token* Scanner::nextToken() {
     Token* token;
     char c;
-    c = nextChar();
+    c = nextChar();//c es el caracter
     while (c == ' ' || c == '\t') c = nextChar();
 
     if (c == '\0') {
@@ -128,20 +136,21 @@ Token* Scanner::nextToken() {
             num += c;
             c = nextChar();
         }
-        startLexema();
+        rollBack();
         return new Token(Token::NUM, num);
     } else if (isalpha(c) || c == '_') {
+            startLexema();
         string lexema;
         while (isalnum(c) || c == '_') {
             lexema += c;
             c = nextChar();
         }
         if (c == ':') { // Check for the colon after an identifier
-            lexema += c;
             c = nextChar();
+            rollBack();
             return new Token(Token::LABEL, lexema);
         }
-        startLexema();
+        rollBack();
         if (isReservedWord(lexema)) {
             return new Token(Token::KEYWORD, lexema, reservedWords[lexema]);
         } else {
